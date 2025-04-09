@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<!-- saved from url=(0103)file:///C:/Users/Jessica/OneDrive/Desktop/University%20work/Ethics/Final/Stroop%20Cognitive%20Test.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
+  <title>Stroop Test – Sleep and Attention Study</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 60px;
+    }
+    #word {
+      font-size: 48px;
+      margin: 40px;
+    }
+    #instructions {
+      margin-bottom: 40px;
+    }
+    #start-btn, #download-btn {
+      padding: 10px 20px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    #download-btn {
+      display: none;
+    }
+    #results {
+      margin-top: 30px;
+      display: none;
+    }
+    #participant-form {
+      margin-bottom: 30px;
+    }
+    #timer {
+      font-size: 24px;
+      font-weight: bold;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div>
+    <img src="./Stroop Test – Sleep and Attention Study_files/924332f3dd756cae9eb833c7c2104e4b.jpg" alt="Brain Illustration" style="width: 150px; margin-top: 20px;">
+  </div>
+
+  <div id="instructions">
+    <h2>Welcome to the Stroop Test</h2>
+    <p>This test is part of a cognitive study examining how sleep deprivation affects attention and cognitive flexibility.</p>
+    <p><strong>Phase 1 (4 minutes):</strong> Identify the COLOR of the font for each word (e.g., if "Green" is in red, press R).</p>
+    <p><strong>Phase 2 (4 minutes):</strong> Identify the WORD itself, ignoring the font color (e.g., "Red" in blue = R).</p>
+    <p><strong>Controls:</strong> R = Red, G = Green, B = Blue, Y = Yellow</p>
+    <p>Try to stay focused and respond as quickly and accurately as possible using your keypad.</p>
+  </div>
+
+  <form id="participant-form">
+    <label for="participant-id">Participant ID:</label>
+    <input type="text" id="participant-id" required=""><br><br>
+
+    <label for="sleep-habits">How many hours of sleep did you get last night?</label><br>
+    <input type="text" id="sleep-habits" placeholder="e.g., 6.5" required=""><br><br>
+
+    <button type="submit">Begin</button>
+  </form>
+
+  <button id="start-btn" style="display:none">Start 8-Minute Test</button>
+  <div id="word" style="display:none"></div>
+  <div id="timer" style="display:none"></div>
+  <button id="download-btn">Download Results</button>
+  <div id="results"></div>
+
+  <script>
+    const colors = ['Red', 'Green', 'Blue', 'Yellow'];
+    const colorKeys = { R: 'Red', G: 'Green', B: 'Blue', Y: 'Yellow' };
+    let trials = [];
+    let currentTrial = 0;
+    let startTime = 0;
+    let testStartTime = 0;
+    let participantID = "anonymous";
+    let sleepHabits = "";
+    const testDuration = 8 * 60 * 1000;
+    let phase1Duration = 4 * 60 * 1000; // Phase 1: 4 minutes
+    let phase2Duration = 4 * 60 * 1000; // Phase 2: 4 minutes
+    let timerInterval;
+    let remainingTimePhase1 = phase1Duration;
+    let remainingTimePhase2 = phase2Duration;
+    let currentPhase = 1;
+
+    // Add sound effects for correct and incorrect answers
+    const correctSound = new Audio('https://www.soundjay.com/button/beep-07.wav');
+    const incorrectSound = new Audio('https://www.soundjay.com/button/beep-08b.wav');
+
+    function generateTrials(n = 200) {
+      const result = [];
+      const distractors = ['Sky', 'Grass', 'Sun', 'Blood'];
+
+      for (let i = 0; i < n; i++) {
+        let word, color;
+        const rand = Math.random();
+
+        if (rand < 0.15) {
+          word = distractors[Math.floor(Math.random() * distractors.length)];
+          do {
+            color = colors[Math.floor(Math.random() * colors.length)];
+          } while (color.toLowerCase() === word.toLowerCase());
+        } else if (rand < 0.45) {
+          word = colors[Math.floor(Math.random() * colors.length)];
+          do {
+            color = colors[Math.floor(Math.random() * colors.length)];
+          } while (word === color);
+        } else {
+          color = colors[Math.floor(Math.random() * colors.length)];
+          word = color;
+        }
+
+        result.push({ word, color });
+      }
+
+      return result.sort(() => Math.random() - 0.5);
+    }
+
+    function showWord() {
+      if (Date.now() - testStartTime >= testDuration || currentTrial >= trials.length) {
+        endTest();
+        return;
+      }
+      const trial = trials[currentTrial];
+      const wordDiv = document.getElementById('word');
+      wordDiv.textContent = trial.word;
+      wordDiv.style.color = trial.color;
+      startTime = Date.now();
+    }
+
+    function endTest() {
+      document.getElementById('word').textContent = "Test Complete!";
+      document.getElementById('download-btn').style.display = 'inline-block';
+      document.getElementById('results').style.display = 'block';
+      document.removeEventListener('keydown', handleKey);
+      showSummary();
+      clearInterval(timerInterval);
+    }
+
+    function handleKey(e) {
+      const key = e.key.toUpperCase();
+      if (!['R', 'G', 'B', 'Y'].includes(key)) return;
+
+      const reactionTime = Date.now() - startTime;
+      const correctColor = trials[currentTrial].color;
+      const userColor = colorKeys[key];
+      const isCorrect = userColor === correctColor;
+
+      trials[currentTrial].response = userColor;
+      trials[currentTrial].reactionTime = reactionTime;
+      trials[currentTrial].isCorrect = isCorrect;
+
+      // Play sound based on correctness
+      if (isCorrect) {
+        correctSound.play();
+      } else {
+        incorrectSound.play();
+      }
+
+      currentTrial++;
+      setTimeout(showWord, 300);
+    }
+
+    function showSummary() {
+      const correctTrials = trials.filter(t => t.isCorrect).length;
+      const totalTrials = currentTrial;
+      const avgRT = Math.round(trials.reduce((sum, t) => sum + (t.reactionTime || 0), 0) / totalTrials);
+      const accuracy = (correctTrials / totalTrials * 100).toFixed(2);
+
+      let badge = "";
+      if (accuracy >= 90) {
+        badge = "🟢 <strong>Performance:</strong> Excellent";
+      } else if (accuracy >= 75) {
+        badge = "🟡 <strong>Performance:</strong> Good";
+      } else {
+        badge = "🟠 <strong>Performance:</strong> Needs Improvement";
+      }
+
+      document.getElementById('results').innerHTML = `
+        <h3>Results</h3>
+        <p><strong>Participant ID:</strong> ${participantID}</p>
+        <p><strong>Sleep Habits:</strong> ${sleepHabits}</p>
+        <p><strong>Total Trials:</strong> ${totalTrials}</p>
+        <p><strong>Correct Responses:</strong> ${correctTrials}</p>
+        <p><strong>Accuracy:</strong> ${accuracy}%</p>
+        <p><strong>Average Reaction Time:</strong> ${avgRT} ms</p>
+        <p>${badge}</p>
+      `;
+    }
+
+    function downloadResults() {
+      let csvContent = "data:text/csv;charset=utf-8,ParticipantID,SleepHabits,Trial,Word,Color,Response,ReactionTime(ms),Correct\n";
+      trials.slice(0, currentTrial).forEach((t, i) => {
+        csvContent += `${participantID},${sleepHabits},${i+1},${t.word},${t.color},${t.response},${t.reactionTime},${t.isCorrect}\n`;
+      });
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `stroop_test_results_${participantID}.csv`);
+      document.body.appendChild(link);
+      link.click();
+    }
+
+    function updateTimer() {
+      let remainingTime = currentPhase === 1 ? remainingTimePhase1 : remainingTimePhase2;
+      let minutes = Math.floor(remainingTime / 60000);
+      let seconds = ((remainingTime % 60000) / 1000).toFixed(0);
+      if (seconds < 10) { seconds = "0" + seconds; }
+      document.getElementById('timer').textContent = `${minutes}:${seconds}`;
+      
+      if (remainingTime <= 0) {
+        if (currentPhase === 1) {
+          currentPhase = 2;
+          remainingTimePhase2 = phase2Duration; // Reset Phase 2 timer
+          remainingTimePhase1 = 0; // Stop Phase 1 timer
+          document.getElementById('instructions').innerHTML = `
+            <h2>Phase 2 (4 minutes)</h2>
+            <p>Identify the WORD itself, ignoring the font color (e.g., "Red" in blue = R).</p>
+            <p><strong>Controls:</strong> R = Red, G = Green, B = Blue, Y = Yellow</p>
+            <p>Keep focused and respond as quickly and accurately as possible.</p>
+          `;
+        } else {
+          endTest();
+          return;
+        }
+      } else {
+        if (currentPhase === 1) {
+          remainingTimePhase1 -= 1000;
+        } else {
+          remainingTimePhase2 -= 1000;
+        }
+      }
+    }
+
+    document.getElementById('participant-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      participantID = document.getElementById('participant-id').value.trim() || "anonymous";
+      sleepHabits = document.getElementById('sleep-habits').value.trim();
+      document.getElementById('participant-form').style.display = 'none';
+      document.getElementById('start-btn').style.display = 'inline-block';
+    });
+
+    document.getElementById('start-btn').addEventListener('click', () => {
+      trials = generateTrials(500);
+      currentTrial = 0;
+      testStartTime = Date.now();
+      document.getElementById('start-btn').style.display = 'none';
+      document.getElementById('word').style.display = 'block';
+      document.getElementById('timer').style.display = 'block';
+      document.addEventListener('keydown', handleKey);
+      showWord();
+      timerInterval = setInterval(updateTimer, 1000);
+    });
+
+    document.getElementById('download-btn').addEventListener('click', downloadResults);
+  </script>
+
+
+</body></html>
